@@ -2,7 +2,7 @@ from django.contrib.auth.password_validation import validate_password
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from app.users.models import User
+from users.models import User
 
 
 class RegisterSerializer(serializers.ModelSerializer):
