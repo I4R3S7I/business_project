@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, Client
 from rest_framework.test import APIClient
 
 
@@ -25,13 +25,13 @@ def auth_client(email='owner@email.com', first_name='Владислав', last_n
         format='json',
     )
     assert token_response.status_code == 200, token_response.data
-    client.credentials(HTTP_AUTHORIZATION=f'Bearer {token_response.data['access']}')
+    client.credentials(HTTP_AUTHORIZATION=f'Bearer {token_response.data["access"]}')
     return client
 
 
 def create_company(client, name='ООО Строитель', inn='1234567890'):
     response = client.post(
-        'api/companies/',
+        '/api/companies/',
         {'name': name, 'inn': inn, 'description': 'Ремонт под ключ'},
         format='json',
     )
@@ -43,7 +43,7 @@ class AuthApiTests(TestCase):
     def test_register_login_and_me(self):
         client = APIClient()
         response = client.post(
-            '/api/auth/register',
+            '/api/auth/register/',
             {
                 'email': 'Owner@email.com',
                 'password': PASSWORD,
@@ -59,7 +59,7 @@ class AuthApiTests(TestCase):
         self.assertNotIn('password', response.data)
 
         login = client.post(
-            '/api/auth/token',
+            '/api/auth/token/',
             {'email': 'OWNER@email.com', 'password': PASSWORD},
             format='json',
         )
@@ -75,9 +75,9 @@ class AuthApiTests(TestCase):
         self.assertEqual(refresh.status_code, 200)
         self.assertIn('access', refresh.data)
 
-        client.credentials(HTTP_AUTHORIZATION=f'Bearer {login.data['access']}')
-        me = client.get('/api/users/me')
-        self.assertEqual(me.status.code, 200)
+        client.credentials(HTTP_AUTHORIZATION=f'Bearer {login.data["access"]}')
+        me = client.get('/api/users/me/')
+        self.assertEqual(me.status_code, 200)
         self.assertEqual(me.data['email'], 'owner@email.com')
         self.assertFalse(me.data['is_company_owner'])
         self.assertIsNone(me.data['company_id'])
@@ -85,7 +85,14 @@ class AuthApiTests(TestCase):
 
 
     def test_duplicate_email_and_password_mismatch(self):
-        auth_client()
+        User = get_user_model()
+        User.objects.create_user(
+            email='owner@email.com',
+            password=PASSWORD,
+            first_name='Владислав',
+            last_name='Тройнич'
+            )
+        
         client = APIClient()
         duplicate = client.post(
             '/api/auth/register/',
@@ -101,7 +108,7 @@ class AuthApiTests(TestCase):
         self.assertEqual(duplicate.status_code, 400)
 
         missmatch = client.post(
-            '/api/auth/register',
+            '/api/auth/register/',
             {
                 'email': 'regular@email.com',
                 'password': PASSWORD,
@@ -116,7 +123,14 @@ class AuthApiTests(TestCase):
 
 
     def test_wrong_password_and_anonyomous_me(self):
-        auth_client()
+        User = get_user_model()
+        User.objects.create_user(
+            email='owner@email.com',
+            password=PASSWORD,
+            first_name='Владислав',
+            last_name='Тройнич'
+            )
+        
         client = APIClient()
         login = client.post(
             '/api/auth/token/',
@@ -139,8 +153,8 @@ class AuthApiTests(TestCase):
 class AdminTests(TestCase):
     def test_user_company_and_storage_are_in_admin(self):
         User = get_user_model()
-        admin_user = User.objects.create_superuser('admin@admin.com', PASSWORD)
-        client = APIClient()
+        admin_user = User.objects.create_superuser(email='admin@admin.com', password=PASSWORD)
+        client = Client()
         client.force_login(admin_user)
 
         for url in (
@@ -149,7 +163,7 @@ class AdminTests(TestCase):
             '/admin/companies/company/',
             '/admin/storage/storage/',
         ):
-            response = client.geet(url)
+            response = client.get(url)
             self.assertEqual(response.status_code, 200, url)
 
         created = client.post(

@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics, permissions
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -42,4 +43,7 @@ class MeView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
 
     def get_object(self):
-        return User.objects.select_related('company').get(pk=self.request.user.pk)
+        queryset = User.objects.select_related('company')
+        obj = get_object_or_404(queryset, pk=self.request.user.pk)
+        self.check_object_permissions(self.request, obj)
+        return obj

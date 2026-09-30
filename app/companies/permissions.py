@@ -29,7 +29,7 @@ class IsCompanyOwner(BasePermission):
         return bool(
             user.is_authenticated
             and user.is_company_owner
-            and user.is_company_id
+            and user.company_id
             and user.company_id == related_company_id(obj)
         )
 

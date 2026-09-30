@@ -7,14 +7,14 @@ from users.tests import PASSWORD, auth_client, create_company
 
 class StorageApiTests(TestCase):
     def setUp(self):
-        self.owner = auth_client()
+        self.owner = auth_client(email='owner@email.com', first_name='Владислав', last_name='Тройнич')
         self.company = create_company(self.owner)
         self.address = 'Солигорск, Улица Заслонова, д.17'
 
     def test_owner_manages_single_storage(self):
         created = self.owner.post(
             '/api/storages/',
-            {'address': f'{self.address}', 'company': 999},
+            {'address': self.address, 'company': self.company['id']},
             format='json',
         )
         self.assertEqual(created.status_code, 201)
@@ -91,12 +91,12 @@ class StorageApiTests(TestCase):
             403,
         )
 
-        stranger = auth_client('stranger@email.com', 'Олег', 'Смирнов')
+        stranger = auth_client(email='stranger@email.com', first_name='Олег', last_name='Смирнов')
         self.assertEqual(stranger.get(f'/api/storages/{created.data["id"]}/').status_code, 403)
         anonymous = APIClient()
         self.assertEqual(anonymous.get(f'/api/storages/{created.data["id"]}/').status_code, 401)
 
     def test_user_without_company_cannot_create_storage(self):
-        client = auth_client('free@email.com', 'Рита', 'Магиладзе')
+        client = auth_client(email='free@email.com', first_name='Рита', last_name='Магиладзе')
         response = client.post('/api/storages/', {'address': self.address}, format='json')
         self.assertEqual(response.status_code, 403)

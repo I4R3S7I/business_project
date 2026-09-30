@@ -20,26 +20,26 @@ class CompanyApiTests(TestCase):
         self.assertTrue(owner.is_company_owner)
         self.assertEqual(owner.company_id, created['id'])
 
-        me = client.get('/api/users/me')
+        me = client.get('/api/users/me/')
         self.assertEqual(me.data['company_id'], created['id'])
         self.assertTrue(me.data['is_company_owner'])
 
         anonymous = APIClient()
-        hidden = anonymous.get(f'/api/companies/{created['id']}/')
+        hidden = anonymous.get(f'/api/companies/{created["id"]}/')
         self.assertEqual(hidden.status_code, 401)
 
-        stranger = auth_client('stranger@email.com, "Олег", "Смирнов"')
-        visible = stranger.get(f'/api/companies/{created['id']}/')
+        stranger = auth_client('stranger@email.com', 'Олег', 'Смирнов')
+        visible = stranger.get(f'/api/companies/{created["id"]}/')
         self.assertEqual(visible.status_code, 200)
         forbidden = stranger.patch(
-            f'/api/companies/{created['id']}/',
+            f'/api/companies/{created["id"]}/',
             {'name': 'Чужая'},
             format='json',
         )
         self.assertEqual(forbidden.status_code, 403)
 
         updated = client.patch(
-            f'/api/companies/{created['id']}/',
+            f'/api/companies/{created["id"]}/',
             {'name': 'ООО Строитель Люкс', 'description': 'Новое описание компании'},
             format='json',
         )
@@ -71,7 +71,7 @@ class CompanyApiTests(TestCase):
         )
         self.assertEqual(blocked.status_code, 400)
 
-        deleted = client.delete(f'/api/companies/{created['id']}/')
+        deleted = client.delete(f'/api/companies/{created["id"]}/')
         self.assertEqual(deleted.status_code, 204)
         owner.refresh_from_db()
         self.assertFalse(owner.is_company_owner)
@@ -92,7 +92,7 @@ class CompanyApiTests(TestCase):
         create_company(client)
         other = auth_client('second@email.com', 'Ирина', 'Орлова')
         duplicate = other.post(
-            '/api/companies',
+            '/api/companies/',
             {'name': 'ООО Строитель', 'inn': '123456789876'},
             format='json',
         )
@@ -108,5 +108,5 @@ class CompanyApiTests(TestCase):
             format='json',
         )
         self.assertEqual(storage.status_code, 201)
-        client.delete(f'/api/companies/{company['id']}/')
+        client.delete(f'/api/companies/{company["id"]}/')
         self.assertFalse(Storage.objects.filter(pk=storage.data['id']).exists())

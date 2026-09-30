@@ -56,4 +56,4 @@ class UserSerializer(serializers.ModelSerializer):
     def get_storage_id(self, obj):
         if not obj.company_id:
             return None
-        return obj.company.storages.value_list('id', flat=True).first()
+        return obj.company.storages.values_list('id', flat=True).first()
