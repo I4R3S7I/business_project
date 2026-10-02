@@ -9,6 +9,16 @@ def related_company_id(obj):
     return obj.company_id
 
 
+class HasCompany(BasePermission):
+    '''Текущий пользователь привязан к компании.'''
+
+    message = 'Действие доступно только пользователям компании.'
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user.is_authenticated and user.company_id)
+
+
 class IsCurrentCompanyOwner(BasePermission):
     '''Текущий пользователь - владелец своей компании.'''
 

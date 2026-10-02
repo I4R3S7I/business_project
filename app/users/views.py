@@ -43,7 +43,5 @@ class MeView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
 
     def get_object(self):
-        queryset = User.objects.select_related('company')
-        obj = get_object_or_404(queryset, pk=self.request.user.pk)
-        self.check_object_permissions(self.request, obj)
-        return obj
+        return User.objects.select_related('company').get(pk=self.request.user.pk)
+    

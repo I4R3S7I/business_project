@@ -31,6 +31,7 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractUser):
+    '''Пользователь системы'''
 
     username = None
     email = models.EmailField('email', unique=True)

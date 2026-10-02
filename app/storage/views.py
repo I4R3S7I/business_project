@@ -1,3 +1,4 @@
+from django.db.models import ProtectedError
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions
 from rest_framework.exceptions import ValidationError
@@ -34,3 +35,11 @@ class StorageDetailView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method in ('GET', 'HEAD'):
             return [permissions.IsAuthenticated(), IsCompanyMember()]
         return [permissions.IsAuthenticated(), IsCompanyOwner()]
+
+    def perform_destroy(self, instance):
+        try:
+            instance.delete()
+        except ProtectedError:
+            raise ValidationError(
+                'Нельзя удалить склад, пока на нем есть товары из поставок.'
+            )

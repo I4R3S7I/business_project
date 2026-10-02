@@ -28,6 +28,17 @@ def auth_client(email='owner@email.com', first_name='Владислав', last_n
     client.credentials(HTTP_AUTHORIZATION=f'Bearer {token_response.data["access"]}')
     return client
 
+def login(email):
+    client = APIClient()
+    token_response = client.post(
+        '/api/auth/token/',
+        {'email': email, 'password': PASSWORD},
+        format='json',
+    )
+    assert token_response.status_code == 200, token_response.data
+    client.credentials(HTTP_AUTHORIZATION=f'Bearer {token_response.data["access"]}')
+    return client
+
 
 def create_company(client, name='ООО Строитель', inn='1234567890'):
     response = client.post(
@@ -35,6 +46,11 @@ def create_company(client, name='ООО Строитель', inn='1234567890'):
         {'name': name, 'inn': inn, 'description': 'Ремонт под ключ'},
         format='json',
     )
+    assert response.status_code == 201, response.data
+    return response.data
+
+def create_storage(client, address='Солигорск, улица Заслонова, д.17'):
+    response = client.post('/api/storages/', {'address': address}, format='json')
     assert response.status_code == 201, response.data
     return response.data
 
@@ -85,14 +101,7 @@ class AuthApiTests(TestCase):
 
 
     def test_duplicate_email_and_password_mismatch(self):
-        User = get_user_model()
-        User.objects.create_user(
-            email='owner@email.com',
-            password=PASSWORD,
-            first_name='Владислав',
-            last_name='Тройнич'
-            )
-        
+        auth_client()     
         client = APIClient()
         duplicate = client.post(
             '/api/auth/register/',
@@ -123,14 +132,7 @@ class AuthApiTests(TestCase):
 
 
     def test_wrong_password_and_anonyomous_me(self):
-        User = get_user_model()
-        User.objects.create_user(
-            email='owner@email.com',
-            password=PASSWORD,
-            first_name='Владислав',
-            last_name='Тройнич'
-            )
-        
+        auth_client()        
         client = APIClient()
         login = client.post(
             '/api/auth/token/',
@@ -154,7 +156,7 @@ class AdminTests(TestCase):
     def test_user_company_and_storage_are_in_admin(self):
         User = get_user_model()
         admin_user = User.objects.create_superuser(email='admin@admin.com', password=PASSWORD)
-        client = Client()
+        client = APIClient()
         client.force_login(admin_user)
 
         for url in (

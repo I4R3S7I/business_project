@@ -29,8 +29,8 @@ class CompanyApiTests(TestCase):
         self.assertEqual(hidden.status_code, 401)
 
         stranger = auth_client('stranger@email.com', 'Олег', 'Смирнов')
-        visible = stranger.get(f'/api/companies/{created["id"]}/')
-        self.assertEqual(visible.status_code, 200)
+        hidden_from_stranger = stranger.get(f'/api/companies/{created["id"]}/')
+        self.assertEqual(hidden_from_stranger.status_code, 403)
         forbidden = stranger.patch(
             f'/api/companies/{created["id"]}/',
             {'name': 'Чужая'},
@@ -55,10 +55,12 @@ class CompanyApiTests(TestCase):
 
         employee_attempt = stranger.post(
             '/api/companies/',
-            {'name': 'Компания сотрудника', 'inn': '0987654321'},
+            {'name': 'Компания сотрудника', 'inn': '109876543210'},
             format='json',
         )
         self.assertEqual(employee_attempt.status_code, 201)
+        self.assertEqual(stranger.get(f'/api/companies/{employee_attempt.data["id"]}/').status_code, 200)
+        self.assertEqual(stranger.get(f'/api/companies/{created["id"]}/').status_code, 403)
         User.objects.filter(email='stranger@email.com').update(
             company_id=created['id'],
             is_company_owner=False,
@@ -66,7 +68,7 @@ class CompanyApiTests(TestCase):
         Company.objects.filter(pk=employee_attempt.data['id']).delete()
         blocked = stranger.post(
             '/api/companies/',
-            {'name': 'Еще одна', 'inn': '0987654322'},
+            {'name': 'Еще одна', 'inn': '109876543211'},
             format='json',
         )
         self.assertEqual(blocked.status_code, 400)
@@ -93,7 +95,7 @@ class CompanyApiTests(TestCase):
         other = auth_client('second@email.com', 'Ирина', 'Орлова')
         duplicate = other.post(
             '/api/companies/',
-            {'name': 'ООО Строитель', 'inn': '123456789876'},
+            {'name': 'ООО Строитель', 'inn': '123456789012'},
             format='json',
         )
         self.assertEqual(duplicate.status_code, 400)
@@ -110,3 +112,57 @@ class CompanyApiTests(TestCase):
         self.assertEqual(storage.status_code, 201)
         client.delete(f'/api/companies/{company["id"]}/')
         self.assertFalse(Storage.objects.filter(pk=storage.data['id']).exists())
+
+
+    def test_company_has_one_owner_and_many_employees(self):
+        owner = auth_client()
+        company = create_company(owner)
+        User = get_user_model()
+        first = User.objects.create_user(
+            email='first@email.com',
+            password=PASSWORD,
+            first_name='Павел',
+            last_name='Бакунович',
+        )
+        second = User.objects.create_user(
+            email='second@email.com',
+            password=PASSWORD,
+            first_name='Андрей',
+            last_name='Шибут',
+        )
+        attached_first = owner.post(
+            f'/api/companies/{company["id"]}/members/',
+            {'id': first.id},
+            format='json',
+        )
+        attached_second = owner.post(
+            f'/api/companies/{company["id"]}/members/',
+            {'email': second.email},
+            format='json',
+        )
+        self.assertEqual(attached_first.status_code, 201, attached_first.data)
+        self.assertEqual(attached_second.status_code, 201, attached_second.data)
+        self.assertFalse(attached_first.data['is_company_owner'])
+        self.assertFalse(attached_second.data['is_company_owner'])
+
+        members = owner.get(f'/api/companies/{company["id"]}/members/')
+        self.assertEqual(members.status_code, 200)
+        by_email = {item['email']: item['is_company_owner'] for item in members.data}
+        self.assertEqual(
+            by_email,
+            {
+                'owner@email.com': True,
+                'first@email.com': False,
+                'second@email.com': False,
+            },
+        )
+
+        another_owner = auth_client('boss@email.com', 'Артем', 'Лукьяненко')
+        create_company(another_owner, name='ООО Рога и копыта', inn='109876543210')
+        rejected = owner.post(
+            f'/api/companies/{company["id"]}/members/',
+            {'email': 'boss@email.com'},
+            format='json',
+        )
+        self.assertEqual(rejected.status_code, 400)
+        self.assertEqual(User.objects.filter(company_id=company['id'], is_company_owner=True).count(),1)
