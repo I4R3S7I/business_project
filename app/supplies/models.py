@@ -11,7 +11,13 @@ class Supply(models.Model):
         related_name='supplies',
         verbose_name='поставщик',
     )
-    delivery_date = models.DateField('дата поставки')
+    delivery_date = models.DateField('дата поставки', blank=True, null=True)
+    products = models.ManyToManyField(
+        'products.Product',
+        through='SupplyProduct',
+        related_name='supplies',
+        verbose_name='товары',
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -61,5 +67,5 @@ class SupplyProduct(models.Model):
             ),
         ]
 
-        def __str__(self):
-            return f'{self.product} x {self.quantity}'
+    def __str__(self):
+        return f'{self.product} x {self.quantity}'
