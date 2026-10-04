@@ -65,7 +65,7 @@ class SupplyViewSet(
                 'Поставщик': supply.supplier.name,
                 'ИНН': supply.supplier.inn,
                 'Товары': {item.product.title: item.quantity for item in supply.items.all()},
-                'Дата поставки': supply.delivery_date.isoformat(),
+                'Дата поставки': (supply.delivery_date.isoformat() if supply.delivery_date else None),
                 'Товары принял': accepted_by(request.user),
             }
         )

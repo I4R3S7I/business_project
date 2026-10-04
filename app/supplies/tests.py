@@ -182,6 +182,18 @@ class SuppliesApiTests(TestCase):
         self.assertEqual(as_list.status_code, 201, as_list.data)
         self.assertEqual(Product.objects.get(pk=product['id']).quantity, 4)
 
+        without_date = self.owner.post(
+            '/api/supplies/',
+            {
+                'supplier_id': supplier['id'],
+                'products': [{'id': product['id'], 'quantity': 2}],
+            },
+            format='json',
+        )
+        self.assertEqual(without_date.status_code, 201, without_date.data)
+        self.assertIsNotNone(without_date.data['delivery_date'])
+        self.assertEqual(Product.objects.get(pk=product['id']).quantity, 6)
+
     def test_access_and_membership_rules(self):
         outsider = auth_client('other@email.com', 'Олег', 'Смирнов')
         other_company = create_company(outsider, name='ООО Другая компания', inn='103876543210')

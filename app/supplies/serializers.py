@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from products.models import Product
@@ -42,7 +43,7 @@ class SupplySerializer(serializers.ModelSerializer):
 
 class SupplyCreateSerializer(serializers.Serializer):
     supplier_id = serializers.IntegerField()
-    delivery_date = serializers.DateField()
+    delivery_date = serializers.DateField(required=False, allow_null=True)
     products = SupplyItemSerializer(many=True)
 
     def validate_products(self, value):
@@ -57,6 +58,7 @@ class SupplyCreateSerializer(serializers.Serializer):
         company_id = self.context['request'].user.company_id
         items = validated_data['products']
         product_ids = [item['id'] for item in items]
+        delivery_date = validated_data.get('delivery_date') or timezone.localdate()
 
         with transaction.atomic():
             try:
@@ -76,14 +78,14 @@ class SupplyCreateSerializer(serializers.Serializer):
                     storage__company_id=company_id,
                 )
             }
-            missing=[product_id for product_id in product_ids if product_id not in locked]
+            missing = [product_id for product_id in product_ids if product_id not in locked]
             if missing:
                 raise serializers.ValidationError(
                     {'products': f'На складе клмпании нет товаров с id: {missing}.'}
                 )
             supply = Supply.objects.create(
                 supplier=supplier,
-                delivery_date=validated_data['delivery_date'],
+                delivery_date=delivery_date,
                 created_by=validated_data['created_by'],
             )
             for item in items:
