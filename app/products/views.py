@@ -45,4 +45,4 @@ class ProductViewSet(viewsets.ModelViewSet):
         try:
             instance.delete()
         except ProtectedError:
-            raise ValidationError('Нельзя удалить товар, который уже есть в поставках.')
+            raise ValidationError('Нельзя удалить товар, который уже есть в поставках или продажах.')

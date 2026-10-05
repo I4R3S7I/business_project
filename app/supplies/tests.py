@@ -194,6 +194,62 @@ class SuppliesApiTests(TestCase):
         self.assertIsNotNone(without_date.data['delivery_date'])
         self.assertEqual(Product.objects.get(pk=product['id']).quantity, 6)
 
+    def test_supply_rejects_foreign_supplier_id(self):
+        own_product = self.owner.post(
+            '/api/products/',
+            {'title': 'Свой товар', 'purchase_price': 10, 'sale_price': 20},
+            format='json',
+        ).data
+
+        outsider = auth_client('foreign_supplier@email.com', 'Олег', 'Смирнов')
+        create_company(outsider, name='ООО Чужой поставщик', inn='203876543210')
+        create_storage(outsider)
+        foreign_supplier = outsider.post(
+            '/api/suppliers/',
+            {'name': 'Чужой поставщик', 'inn': '203876543211'},
+            format='json',
+        ).data
+
+        response = self.owner.post(
+            '/api/supplies/',
+            {
+                'supplier_id': foreign_supplier['id'],
+                'products': [{'id': own_product['id'], 'quantity': 1}],
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('supplier_id', response.data)
+        self.assertEqual(Product.objects.get(pk=own_product['id']).quantity, 0)
+
+    def test_supply_rejects_foreign_product_id(self):
+        own_supplier = self.owner.post(
+            '/api/suppliers/',
+            {'name': 'Свой поставщик', 'inn': '303876543210'},
+            format='json',
+        ).data
+
+        outsider = auth_client('foreign-product@email.com', 'Рита', 'Магиладзе')
+        create_company(outsider, 'ООО Чужой товар', inn='303876543211')
+        create_storage(outsider)
+        foreign_product = outsider.post(
+            '/api/products/',
+            {'title': 'Чужой товар', 'purchase_price': 10, 'sale_price': 20},
+            format='json',
+        ).data
+
+        response = self.owner.post(
+            '/api/supplies/',
+            {
+                'supplier_id': own_supplier['id'],
+                'product': [{'id': foreign_product['id'], 'quantity': 1}],
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('products', response.data)
+        self.assertEqual(Product.objects.get(pk=foreign_product['id']).quantity, 0)
+
     def test_access_and_membership_rules(self):
         outsider = auth_client('other@email.com', 'Олег', 'Смирнов')
         other_company = create_company(outsider, name='ООО Другая компания', inn='103876543210')
